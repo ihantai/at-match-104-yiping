@@ -1,0 +1,79 @@
+<!doctype html>
+<!--
+  LIFF 啟動頁：在 LINE 裡打開「防護紀錄表」時，先到這一頁取得 LINE 身分，再自動轉進平台，不用再按登入。
+
+  部署方式（免費）：GitHub repo → Settings → Pages → Source 選 main 分支、資料夾選 /（root）或 /docs，
+  然後把這個檔案放在對應位置。拿到的網址（例如 https://帳號.github.io/at_match/trainer-match/liff/）
+  就是 LINE Developers 建立 LIFF 時要填的 Endpoint URL。
+
+  ↓↓↓ 只要改這兩行 ↓↓↓
+-->
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>防護紀錄表</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>📋</text></svg>">
+<style>
+  :root{--navy:#14365A;--teal:#0B5E7E;--muted:#5E6E7C;--bg:#F3F6F8;--paper:#fff;--ink:#1D2B36;color-scheme:light}
+  @media (prefers-color-scheme: dark){:root{--navy:#9CC3E8;--teal:#5FB3D3;--muted:#9AA8B5;--bg:#0F1720;--paper:#17212B;--ink:#E6EDF3;color-scheme:dark}}
+  *{box-sizing:border-box}
+  html,body{height:100%;margin:0}
+  body{font-family:"Noto Sans TC","PingFang TC","Microsoft JhengHei",sans-serif;background:var(--bg);color:var(--ink);
+    display:flex;align-items:center;justify-content:center;
+    padding:env(safe-area-inset-top,0px) 20px env(safe-area-inset-bottom,0px)}
+  .card{background:var(--paper);border-radius:12px;padding:28px 24px;max-width:360px;width:100%;text-align:center;
+    border-top:4px solid var(--teal)}
+  h1{font-size:1.25rem;color:var(--navy);margin:.2rem 0 .6rem}
+  p{color:var(--muted);line-height:1.6;margin:.4rem 0}
+  .spin{width:28px;height:28px;border:3px solid var(--bg);border-top-color:var(--teal);border-radius:50%;
+    margin:6px auto 12px;animation:r .8s linear infinite}
+  @keyframes r{to{transform:rotate(360deg)}}
+  @media (prefers-reduced-motion: reduce){.spin{animation:none}}
+  a.btn{display:inline-block;margin-top:12px;background:var(--teal);color:#fff;text-decoration:none;
+    padding:10px 18px;border-radius:8px;font-weight:700}
+  a.btn:focus-visible{outline:3px solid var(--navy);outline-offset:2px}
+</style>
+<script charset="utf-8" src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
+</head>
+<body>
+<main class="card" aria-live="polite">
+  <div class="spin" id="spin" aria-hidden="true"></div>
+  <h1 id="title">正在開啟防護紀錄表…</h1>
+  <p id="msg">確認你的 LINE 身分中</p>
+</main>
+<script>
+  // ↓↓↓ 部署前請改成你自己的值 ↓↓↓
+  const LIFF_ID = "請填入你的 LIFF ID";                 // 例如 2001234567-AbCdEfGh
+  const APP_URL = "https://你的app名稱.streamlit.app";   // 平台網址，結尾不要加 /
+  // ↑↑↑ 部署前請改成你自己的值 ↑↑↑
+
+  function fail(text) {
+    document.getElementById("spin").style.display = "none";
+    document.getElementById("title").textContent = "無法自動開啟";
+    const msg = document.getElementById("msg");
+    msg.textContent = text + " 你也可以直接開啟平台登入：";
+    const a = document.createElement("a");
+    a.className = "btn"; a.href = APP_URL + "/?page=record"; a.textContent = "開啟平台";
+    msg.after(a);
+  }
+
+  liff.init({ liffId: LIFF_ID })
+    .then(() => {
+      if (!liff.isLoggedIn()) {           // 用外部瀏覽器開啟時才會走到這裡
+        liff.login({ redirectUri: location.href });
+        return;
+      }
+      const token = liff.getIDToken();
+      if (!token) { fail("LIFF 沒有取得 openid 權限，請在 LIFF 設定勾選 openid。"); return; }
+      const here = new URLSearchParams(location.search);
+      const target = new URL(APP_URL + "/");
+      target.searchParams.set("liff_token", token);
+      target.searchParams.set("page", here.get("page") || "record");
+      if (here.get("rec_case")) target.searchParams.set("rec_case", here.get("rec_case"));
+      location.replace(target.toString());
+    })
+    .catch((err) => fail("LINE 初始化失敗（" + (err && err.message ? err.message : err) + "）。"));
+</script>
+</body>
+</html>
